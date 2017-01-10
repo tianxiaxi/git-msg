@@ -1,23 +1,133 @@
 #!/bin/bash
 
-
-get_git_user()
+function get_git_user_info()
 {
-    # init
-    local GIT_USER_NAME = ""
-    local GIT_USER_NAME = ""
+    local __GIT_USER_NAME=$1
+    local __GIT_USER_EMAIL=$2
 
-    # get git user
-    eval GIT_USER_NAME = ""
-    eval GIT_USER_NAME = ""
+    # check the ~/.ssh/config is exists
+    ssh_key_config_file="${HOME}/.ssh/config"
+    if [ ! -f "$ssh_key_config_file" ] ; then
+        echo "Error: $ssh_key_config_file does not exists"
+        return 1
+    fi
+
+    # get git hostname
+    origin_remote_url=`git remote get-url origin`
+    origin_remote_hostname=`echo $origin_remote_url | awk -v FS='@|:' '{print $2}'`
+
+    # read user name
+    sshe_key_pub_file=""
+    validContent=false
+    while read LINE
+    do
+        if [ ${#LINE} -le 5 ] ; then
+            continue
+        fi
+
+        LINE=`echo "${LINE}" | grep -o "[^ ]\+\( \+[^ ]\+\)*"`
+        #echo "Line: ${LINE}"
+        if [ 'Host ' = "${LINE:0:5}" ] ; then
+            validContent=false
+            NEW_LINE=`echo $LINE | awk -v FS=' ' '{print $2}'`
+            if [ "${origin_remote_hostname}" = "${NEW_LINE}" ] ; then
+                validContent=true
+            fi
+        fi
+
+        if [ false = ${validContent} ] ; then
+            continue
+        fi
+
+        if [ 'User ' = "${LINE:0:5}" ] ; then
+            NEW_LINE=`echo $LINE | awk -v FS=' ' '{print $2}'`
+            eval ${__GIT_USER_NAME}="${NEW_LINE}"
+        fi
+
+        if [ ${#LINE} -gt 13 ] ; then
+            if [ 'IdentityFile ' = "${LINE:0:13}" ] ; then
+                NEW_LINE=`echo $LINE | awk -v FS=' ' '{print $2}'`
+                sshe_key_pub_file="`eval echo ${NEW_LINE}.pub`"
+            fi
+        fi
+    done < ${ssh_key_config_file}
+
+    if [ -z "${__GIT_USER_NAME}" ] ; then
+        echo "Error: Could not get user name from ${ssh_key_config_file} with git hostname ${origin_remote_hostname}"
+        return 2
+    fi
+
+    # check for public ssh-key (id_rsa.pub)
+    if [ ! -f "${sshe_key_pub_file}" ] ; then
+        echo "Error: $sshe_key_pub_file does not exists"
+        return 3
+    fi
+
+    # find user email fron id_rsa.pub
+    pub_ken_content=`cat ${sshe_key_pub_file}`
+    email_address=${pub_ken_content##* }
+    if [ -z ${email_address} ] || [ ${email_address} == *@* ] ; then
+        echo "Error: Invalid email address ${email_address}"
+        return 4
+    fi
+    eval ${__GIT_USER_EMAIL}="${email_address}"
+
+    return 0
 }
 
-set_git_user()
+function set_git_user()
 {
+    local GIT_USER_NAME
+    local GIT_USER_EMAIL
+    
+    get_git_user_info GIT_USER_NAME GIT_USER_EMAIL
 
+    echo "Found user name for `git remote get-url origin`: ${GIT_USER_NAME}"
+    echo "Found user Email `git remote get-url origin`: ${GIT_USER_EMAIL}"
+
+    if [ $? -ne 0 ] ; then
+        return 1
+    fi
+
+    # setting user name and email for git
+    old_username=`git config user.name`
+    old_email=`git config user.email`
+    
+    git config user.name ${GIT_USER_NAME}
+    git config user.email ${GIT_USER_EMAIL}
+
+    echo "Change user name: "${old_username}" -> `git config user.name`"
+    echo "Change user email: "${old_email}" -> `git config user.email`"
+
+    return
 }
 
-usage()
+function usage()
 {
-    echo "$(basename $0) - Automatic get git user name form ~/.ssh/config"
+    echo "$(basename $0) - Auto update git user name and email form ~/.ssh/config"
+    echo ""
+    echo "Usage: $(basename $0) [-h | --help | ?]"
+    echo ""
+    echo "Optional:"
+    echo "    -h | --help | ?   - Show usage information for $(basename $0)"
+    echo ""
+    echo "Author: wayne@zanran.me"
+    echo "URL:    www.dailyshare.cn"
+    echo "Github: git@github.com:tianxiaxi/git-msg.git"
+    echo ""
 }
+
+if [ $# -ne 0 ] ; then
+    case $1 in 
+        -h|--help|? )   
+            usage
+            ;;
+        * )
+            echo "Error: unknown arguments"
+            echo ""
+            usage
+            ;;
+    esac
+else
+    set_git_user
+fi

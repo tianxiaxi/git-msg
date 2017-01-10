@@ -1,6 +1,6 @@
 #!/bin/bash
 
-update_git_message()
+function update_git_message()
 {
     git filter-branch --env-filter '
 
@@ -21,7 +21,8 @@ update_git_message()
     ' --tag-name-filter cat -- --branches --tags
 }
 
-if [ $# -ne 3 ] ; then
+function usage()
+{
     echo "$(basename $0) - Update user name and email from git history message"
     echo ""
     echo "Usage: $(basename $0) <old email> <user name> <new email>"
@@ -33,7 +34,12 @@ if [ $# -ne 3 ] ; then
     echo ""
     echo "Author: wayne@zanran.me"
     echo "URL:    www.dailyshare.cn"
+    echo "Github: git@github.com:tianxiaxi/git-msg.git"
     echo ""
+}
+
+if [ $# -ne 3 ] ; then
+    usage
 else
     update_git_message "${1}" "${2}" "${3}"
 fi
