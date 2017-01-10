@@ -1,0 +1,39 @@
+#!/bin/bash
+
+update_git_message()
+{
+    git filter-branch --env-filter '
+
+    OLD_EMAIL="${1}"
+    CORRECT_NAME="${2}"
+    CORRECT_EMAIL="${3}"
+
+    if [ "$GIT_COMMITTER_EMAIL" = "$OLD_EMAIL" ]
+    then
+        export GIT_COMMITTER_NAME="$CORRECT_NAME"
+        export GIT_COMMITTER_EMAIL="$CORRECT_EMAIL"
+    fi
+    if [ "$GIT_AUTHOR_EMAIL" = "$OLD_EMAIL" ]
+    then
+        export GIT_AUTHOR_NAME="$CORRECT_NAME"
+        export GIT_AUTHOR_EMAIL="$CORRECT_EMAIL"
+    fi
+    ' --tag-name-filter cat -- --branches --tags
+}
+
+if [ $# -ne 3 ] ; then
+    echo "$(basename $0) - Update user name and email from git history message"
+    echo ""
+    echo "Usage: $(basename $0) <old email> <user name> <new email>"
+    echo ""
+    echo "Required:"
+    echo "    <old email>   - Old email which will be replaced"
+    echo "    <user name>   - User name for git commiter and author"
+    echo "    <new email>   - New email for git commiter and author"
+    echo ""
+    echo "Author: wayne@zanran.me"
+    echo "URL:    www.dailyshare.cn"
+    echo ""
+else
+    update_git_message "${1}" "${2}" "${3}"
+fi

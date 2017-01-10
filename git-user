@@ -1,0 +1,23 @@
+#!/bin/bash
+
+
+get_git_user()
+{
+    # init
+    local GIT_USER_NAME = ""
+    local GIT_USER_NAME = ""
+
+    # get git user
+    eval GIT_USER_NAME = ""
+    eval GIT_USER_NAME = ""
+}
+
+set_git_user()
+{
+
+}
+
+usage()
+{
+    echo "$(basename $0) - Automatic get git user name form ~/.ssh/config"
+}
